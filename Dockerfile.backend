@@ -1,0 +1,42 @@
+# Backend Dockerfile for P2Pigeon - Single-Stage Build
+
+FROM node:20-bullseye
+
+WORKDIR /app
+
+# Install build tools, curl (for healthcheck), and pnpm
+RUN apt-get update && apt-get install -y build-essential python3 curl && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm@10.12.4
+
+# Copy all source code and manifests
+COPY . .
+
+# Install all dependencies
+RUN pnpm install --filter @pigeon/backend...
+
+# Skip native module rebuilds for now to avoid Docker compilation issues
+# RUN cd app && pnpm rebuild sodium-native
+# RUN cd app && pnpm rebuild
+
+# Build the backend application
+RUN pnpm --filter @pigeon/backend build
+
+# Copy swagger.yaml to the dist folder
+# The WORKDIR is /app, so the source path is relative to that
+RUN mkdir -p app/dist/api && cp app/api/swagger.yaml app/dist/api/swagger.yaml
+
+# Create a non-root user
+RUN groupadd -g 1001 pigeon && \
+    useradd -u 1001 -g pigeon -s /bin/sh -m pigeon
+RUN chown -R pigeon:pigeon /app
+USER pigeon
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3060/health || exit 1
+
+EXPOSE 3060
+EXPOSE 3051
+
+# The CMD needs to be relative to the WORKDIR /app
+CMD ["node", "app/dist/src/server.js"]

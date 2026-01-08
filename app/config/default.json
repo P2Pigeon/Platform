@@ -1,0 +1,18 @@
+{
+  "p2p": {
+    "bootstrap": [
+      "bootstrap1.p2p.network",
+      "bootstrap2.p2p.network",
+      "bootstrap3.p2p.network"
+    ],
+    "firewall": "/ip4/0.0.0.0/tcp/0",
+    "logLevel": "info"
+  },
+  "server": {
+    "port": 3002,
+    "host": "0.0.0.0"
+  },
+  "api": {
+    "version": "v1"
+  }
+}

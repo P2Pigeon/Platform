@@ -1,0 +1,1 @@
+{"version":3,"file":"StandardCheckbox.d.ts","sourceRoot":"","sources":["../../../src/components/FormControls/StandardCheckbox.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAE1B,MAAM,WAAW,kBAAmB,SAAQ,KAAK,CAAC,mBAAmB,CAAC,gBAAgB,CAAC;IACrF,KAAK,CAAC,EAAE,MAAM,CAAC;CAChB;AAED,eAAO,MAAM,gBAAgB,EAAE,KAAK,CAAC,EAAE,CAAC,kBAAkB,CAKzD,CAAC"}

@@ -1,0 +1,47 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0f;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a0f;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+    <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  
+  <!-- Accent line at top -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#accentGradient)"/>
+  
+  <!-- Dove emoji -->
+  <text x="600" y="260" font-size="150" text-anchor="middle" dominant-baseline="middle" filter="url(#glow)">🕊️</text>
+  
+  <!-- P2Pigeon text -->
+  <text x="600" y="380" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="72" font-weight="700" fill="white" text-anchor="middle" dominant-baseline="middle">P2Pigeon</text>
+  
+  <!-- Tagline -->
+  <text x="600" y="450" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" fill="rgba(255,255,255,0.7)" text-anchor="middle" dominant-baseline="middle">Secure P2P Communications</text>
+  
+  <!-- Features -->
+  <text x="600" y="520" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" fill="url(#accentGradient)" text-anchor="middle" dominant-baseline="middle">End-to-End Encrypted • Zero Knowledge • Open Source</text>
+  
+  <!-- Website -->
+  <text x="600" y="580" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" fill="url(#accentGradient)" text-anchor="middle" dominant-baseline="middle">https://pigeon.cx</text>
+</svg>

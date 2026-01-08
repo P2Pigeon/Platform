@@ -1,0 +1,34 @@
+# git folder
+.git
+
+# npm
+node_modules
+npm-debug.log
+
+# mac
+.DS_Store
+
+# cache
+.cache
+
+# personal env
+
+docker-push.sh
+
+# Build artifacts
+/dist
+/app/dist
+
+# Logs
+/logs
+/frontend/logs
+npm-debug.log*
+*.log
+
+.windsurf/
+
+# Local storage
+app/.dataroom-storage/
+app/.hyperdrive-storage/
+app/.env
+.windsurf/

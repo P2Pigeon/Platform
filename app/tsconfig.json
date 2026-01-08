@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "./dist",
+    "noImplicitAny": false,
+    "strictNullChecks": false
+  },
+  "include": [
+    "main.ts",
+    "preload.ts",
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/hypernat/**/*.ts",
+    "src/sfu/**/*.ts",
+    "src/dataroom/HyperdriveManager.ts"
+  ]
+}

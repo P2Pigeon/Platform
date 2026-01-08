@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# Docker - The build context is the root, so these are not needed inside themselves
+Dockerfile
+.dockerignore
+
+# Dependencies - These are installed inside the container
+**/node_modules
+.pnpm-store
+
+# Build Output - These are generated inside the container
+**/dist
+**/build
+**/out
+
+# Logs and temporary files
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files - Should never be in a container
+.env*
+
+# Test outputs
+**/coverage/
+**/.nyc_output/
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

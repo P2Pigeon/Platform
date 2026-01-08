@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* P2Pigeon Premium Design System */
+@layer base {
+  :root {
+    --pigeon-primary: 139 92 246;
+    --pigeon-accent: 245 158 11;
+    --pigeon-success: 16 185 129;
+    --pigeon-danger: 239 68 68;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-pigeon-border;
+  }
+
+  body {
+    @apply bg-pigeon-bg text-pigeon-text font-sans antialiased;
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 92, 246, 0.15), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(6, 182, 212, 0.1), transparent);
+    min-height: 100vh;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+
+  ::selection {
+    @apply bg-pigeon-primary/30 text-white;
+  }
+}
+
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-pigeon-surface-light rounded-full;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-pigeon-border-light;
+}
+
+/* P2Pigeon Component Classes */
+@layer components {
+  /* Glass Card - no borders, consistent radius */
+  .glass-card {
+    @apply relative bg-gray-800 rounded-lg;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 ease-out
+           hover:bg-gray-700;
+  }
+
+  /* Premium Buttons */
+  .btn-primary {
+    @apply relative px-6 py-3 rounded-xl font-semibold text-white
+           bg-gradient-primary shadow-glow
+           transition-all duration-200 ease-out
+           hover:shadow-glow-lg hover:scale-[1.02]
+           active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-xl font-semibold
+           bg-pigeon-surface text-pigeon-text
+           border border-pigeon-border
+           transition-all duration-200 ease-out
+           hover:bg-pigeon-surface-light hover:border-pigeon-border-light
+           active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-lg font-medium
+           text-pigeon-text-secondary
+           transition-all duration-200
+           hover:text-pigeon-text hover:bg-white/5
+           active:scale-[0.98];
+  }
+
+  .btn-icon {
+    @apply p-2 rounded-lg
+           text-pigeon-text-secondary
+           transition-all duration-200
+           hover:text-pigeon-text hover:bg-white/10
+           active:scale-[0.95];
+  }
+
+  /* Premium Input - matches meetings page style */
+  .input-premium {
+    @apply w-full px-3 py-2 rounded
+           bg-gray-900
+           border border-gray-600
+           text-white placeholder:text-gray-500
+           transition-all duration-200
+           focus:outline-none focus:border-cyan-500;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-primary {
+    @apply badge bg-pigeon-primary/20 text-pigeon-primary-light;
+  }
+
+  .badge-success {
+    @apply badge bg-pigeon-success/20 text-pigeon-success-light;
+  }
+
+  .badge-accent {
+    @apply badge bg-pigeon-accent/20 text-pigeon-accent-light;
+  }
+
+  .badge-danger {
+    @apply badge bg-pigeon-danger/20 text-pigeon-danger;
+  }
+
+  /* Feature Card - Note: 'group' must be added directly in className, not via @apply */
+  .feature-card {
+    @apply glass-card-hover p-6 cursor-pointer;
+  }
+
+  .feature-card-icon {
+    @apply w-12 h-12 rounded-xl bg-gradient-primary
+           flex items-center justify-center mb-4
+           group-hover:shadow-glow transition-shadow duration-300;
+  }
+
+  /* Section styling */
+  .section-heading {
+    @apply text-3xl md:text-4xl font-bold text-pigeon-text tracking-tight;
+  }
+
+  .section-subheading {
+    @apply text-lg text-pigeon-text-secondary max-w-2xl;
+  }
+
+  /* Glow effects */
+  .glow-text {
+    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  }
+
+  .glow-border {
+    box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply relative px-4 py-2 text-pigeon-text-secondary font-medium
+           transition-colors duration-200
+           hover:text-pigeon-text;
+  }
+
+  .nav-link-active {
+    @apply nav-link text-pigeon-text;
+  }
+
+  .nav-link-active::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-0.5
+           bg-gradient-primary rounded-full;
+  }
+
+  /* Dividers */
+  .divider {
+    @apply h-px bg-gradient-to-r from-transparent via-pigeon-border to-transparent;
+  }
+
+  .divider-vertical {
+    @apply w-px h-full bg-gradient-to-b from-transparent via-pigeon-border to-transparent;
+  }
+}
+
+/* Chat-specific components */
+@layer components {
+  .chat-bubble {
+    @apply p-3 rounded-2xl max-w-[80%];
+  }
+
+  .chat-bubble-sent {
+    @apply chat-bubble bg-pigeon-primary text-white rounded-br-md;
+  }
+
+  .chat-bubble-received {
+    @apply chat-bubble bg-pigeon-surface text-pigeon-text rounded-bl-md;
+  }
+
+  .contact-item {
+    @apply mx-2 mb-1 p-3 rounded-xl cursor-pointer transition-all duration-200
+           hover:bg-white/5;
+  }
+
+  .contact-item-active {
+    @apply contact-item bg-pigeon-primary/20 border border-pigeon-primary/30;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/70 backdrop-blur-sm z-50;
+  }
+
+  .modal-content {
+    @apply glass-card p-6 w-full max-w-md animate-scale-in;
+  }
+}
+
+/* Utility animations */
+@layer utilities {
+  .animate-in {
+    animation: fadeIn 0.5s ease-out, slideUp 0.5s ease-out;
+  }
+
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+}

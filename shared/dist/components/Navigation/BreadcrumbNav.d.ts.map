@@ -1,0 +1,1 @@
+{"version":3,"file":"BreadcrumbNav.d.ts","sourceRoot":"","sources":["../../../src/components/Navigation/BreadcrumbNav.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAE1B,MAAM,WAAW,kBAAkB;IACjC,KAAK,EAAE;QAAE,KAAK,EAAE,MAAM,CAAC;QAAC,OAAO,EAAE,MAAM,IAAI,CAAA;KAAE,EAAE,CAAC;CACjD;AAED,eAAO,MAAM,aAAa,EAAE,KAAK,CAAC,EAAE,CAAC,kBAAkB,CAStD,CAAC"}

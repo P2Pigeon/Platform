@@ -1,0 +1,1 @@
+{"version":3,"file":"StandardInput.d.ts","sourceRoot":"","sources":["../../../src/components/FormControls/StandardInput.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAE1B,MAAM,WAAW,cAAe,SAAQ,KAAK,CAAC,mBAAmB,CAAC,gBAAgB,CAAC;IACjF,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,KAAK,CAAC,EAAE,MAAM,CAAC;CAChB;AAED,eAAO,MAAM,aAAa,EAAE,KAAK,CAAC,EAAE,CAAC,cAAc,CAiBlD,CAAC"}

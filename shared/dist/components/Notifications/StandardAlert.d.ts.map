@@ -1,0 +1,1 @@
+{"version":3,"file":"StandardAlert.d.ts","sourceRoot":"","sources":["../../../src/components/Notifications/StandardAlert.tsx"],"names":[],"mappings":"AAAA,OAAO,KAAK,MAAM,OAAO,CAAC;AAE1B,MAAM,WAAW,kBAAkB;IACjC,OAAO,EAAE,MAAM,CAAC;IAChB,IAAI,CAAC,EAAE,MAAM,GAAG,SAAS,GAAG,OAAO,GAAG,SAAS,CAAC;CACjD;AAeD,eAAO,MAAM,aAAa,EAAE,KAAK,CAAC,EAAE,CAAC,kBAAkB,CAYtD,CAAC"}

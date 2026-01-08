@@ -1,0 +1,57 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    ports:
+      - "3060:3060"   # Signaling server
+      - "3051:3051"   # DHT relay
+    environment:
+      - NODE_ENV=production
+      - PORT=3060
+      - DHT_RELAY_PORT=3051
+    networks:
+      - pigeon-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3060/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - pigeon-logs:/app/logs
+      - pigeon-data:/app/.hyperdrive-storage
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_TARGET=http://backend:3060
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - pigeon-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  pigeon-net:
+    driver: bridge
+
+volumes:
+  pigeon-logs:
+  pigeon-data:
