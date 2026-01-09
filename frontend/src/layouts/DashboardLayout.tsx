@@ -43,7 +43,7 @@ const DashboardLayout: React.FC = () => {
         isCollapsed ? 'md:ml-[72px]' : 'md:ml-64'
       }`}>
         <Topbar onOpen={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 min-h-0 overflow-auto">
           <Outlet />
         </main>
       </div>

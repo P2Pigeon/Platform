@@ -59,11 +59,55 @@ const DEFAULT_RELAYS = [
   'wss://relay.snort.social',
 ];
 
+const NOSTR_MESSAGES_KEY = 'pigeon_nostr_messages_';
+const NOSTR_CONTACTS_KEY = 'pigeon_nostr_contacts_';
+const NOSTR_CHANNELS_KEY = 'pigeon_nostr_channels_';
+
+// Helper to load messages from localStorage
+const loadStoredMessages = (pubkey: string): Map<string, NostrMessage[]> => {
+  try {
+    const stored = localStorage.getItem(NOSTR_MESSAGES_KEY + pubkey);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return new Map(Object.entries(parsed));
+    }
+  } catch (e) {
+    console.error('[useNostr] Failed to load stored messages:', e);
+  }
+  return new Map();
+};
+
+// Helper to load contacts from localStorage
+const loadStoredContacts = (pubkey: string): NostrContact[] => {
+  try {
+    const stored = localStorage.getItem(NOSTR_CONTACTS_KEY + pubkey);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('[useNostr] Failed to load stored contacts:', e);
+  }
+  return [];
+};
+
+// Helper to load channels from localStorage
+const loadStoredChannels = (pubkey: string): NostrChannel[] => {
+  try {
+    const stored = localStorage.getItem(NOSTR_CHANNELS_KEY + pubkey);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('[useNostr] Failed to load stored channels:', e);
+  }
+  return [];
+};
+
 export function useNostr() {
   const { identity, status: authStatus } = useAuth();
   const clientRef = useRef<NostrClient | null>(null);
   
-  // State
+  // State - initialize from localStorage
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [relayStatuses, setRelayStatuses] = useState<RelayStatus[]>(
@@ -76,6 +120,61 @@ export function useNostr() {
   const [channelSubscriptions, setChannelSubscriptions] = useState<Map<string, string>>(new Map());
   const [myProfile, setMyProfile] = useState<NostrProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Load stored messages, contacts, and channels when identity changes
+  useEffect(() => {
+    if (identity?.publicKey) {
+      const storedMessages = loadStoredMessages(identity.publicKey);
+      const storedContacts = loadStoredContacts(identity.publicKey);
+      const storedChannels = loadStoredChannels(identity.publicKey);
+      if (storedMessages.size > 0) {
+        setMessages(storedMessages);
+        console.log('[useNostr] Loaded', storedMessages.size, 'conversations from storage');
+      }
+      if (storedContacts.length > 0) {
+        setContacts(storedContacts);
+        console.log('[useNostr] Loaded', storedContacts.length, 'contacts from storage');
+      }
+      if (storedChannels.length > 0) {
+        setChannels(storedChannels);
+        console.log('[useNostr] Loaded', storedChannels.length, 'channels from storage');
+      }
+    }
+  }, [identity?.publicKey]);
+
+  // Save messages to localStorage when they change
+  useEffect(() => {
+    if (identity?.publicKey && messages.size > 0) {
+      try {
+        const obj = Object.fromEntries(messages);
+        localStorage.setItem(NOSTR_MESSAGES_KEY + identity.publicKey, JSON.stringify(obj));
+      } catch (e) {
+        console.error('[useNostr] Failed to save messages:', e);
+      }
+    }
+  }, [messages, identity?.publicKey]);
+
+  // Save contacts to localStorage when they change
+  useEffect(() => {
+    if (identity?.publicKey && contacts.length > 0) {
+      try {
+        localStorage.setItem(NOSTR_CONTACTS_KEY + identity.publicKey, JSON.stringify(contacts));
+      } catch (e) {
+        console.error('[useNostr] Failed to save contacts:', e);
+      }
+    }
+  }, [contacts, identity?.publicKey]);
+
+  // Save channels to localStorage when they change
+  useEffect(() => {
+    if (identity?.publicKey) {
+      try {
+        localStorage.setItem(NOSTR_CHANNELS_KEY + identity.publicKey, JSON.stringify(channels));
+      } catch (e) {
+        console.error('[useNostr] Failed to save channels:', e);
+      }
+    }
+  }, [channels, identity?.publicKey]);
 
   // Initialize client when identity changes
   useEffect(() => {
@@ -508,7 +607,13 @@ export function useNostr() {
       creatorPubkey: channelEvent.pubkey,
     };
 
-    setChannels(prev => [...prev, channel]);
+    setChannels(prev => {
+      // Double-check for duplicates before adding
+      if (prev.find(c => c.id === channel.id)) {
+        return prev;
+      }
+      return [...prev, channel];
+    });
     
     // Subscribe to channel messages
     joinChannel(normalizedId);
@@ -516,6 +621,109 @@ export function useNostr() {
     console.log('[useNostr] ✅ Joined channel:', channel.name);
     return channel;
   }, [isConnected, channels, joinChannel]);
+
+  // Remove/leave a channel
+  const removeChannel = useCallback((channelId: string) => {
+    // Unsubscribe from channel messages
+    leaveChannel(channelId);
+    
+    // Remove from channels list
+    setChannels(prev => prev.filter(c => c.id !== channelId));
+    
+    // Clear channel messages
+    setChannelMessages(prev => {
+      const updated = new Map(prev);
+      updated.delete(channelId);
+      return updated;
+    });
+    
+    console.log('[useNostr] Left channel:', channelId.slice(0, 8));
+  }, [leaveChannel]);
+
+  // Search for channels on the network (kind 40 events)
+  const searchChannels = useCallback(async (query: string): Promise<NostrChannel[]> => {
+    if (!clientRef.current || !isConnected) {
+      return [];
+    }
+
+    console.log('[useNostr] Searching channels for:', query);
+    const foundChannels: NostrChannel[] = [];
+    const queryLower = query.toLowerCase().trim();
+    
+    try {
+      // Check if query looks like a channel ID (64 char hex)
+      const isHexId = /^[0-9a-f]{64}$/i.test(queryLower);
+      const isPartialHex = /^[0-9a-f]{8,}$/i.test(queryLower);
+      
+      // If it's a full hex ID, try to fetch that specific channel first
+      if (isHexId) {
+        const directEvents = await clientRef.current.queryEvents([
+          { kinds: [40], ids: [queryLower], limit: 1 }
+        ]);
+        
+        for (const event of directEvents) {
+          if (!channels.find(c => c.id === event.id)) {
+            try {
+              const metadata = JSON.parse(event.content);
+              foundChannels.push({
+                id: event.id,
+                name: metadata.name || `Channel ${event.id.slice(0, 8)}`,
+                about: metadata.about,
+                picture: metadata.picture,
+                createdAt: event.created_at,
+                creatorPubkey: event.pubkey,
+              });
+            } catch {
+              // Invalid metadata
+            }
+          }
+        }
+      }
+      
+      // Query for recent channel creation events (kind 40)
+      // Fetch more channels for better search coverage
+      const events = await clientRef.current.queryEvents([
+        { kinds: [40], limit: 200 }
+      ]);
+
+      for (const event of events) {
+        // Skip if already found or already joined
+        if (foundChannels.find(c => c.id === event.id) || channels.find(c => c.id === event.id)) {
+          continue;
+        }
+        
+        try {
+          const metadata = JSON.parse(event.content);
+          const name = metadata.name || '';
+          const about = metadata.about || '';
+          
+          // Match against name, about, or partial ID
+          const nameMatch = name.toLowerCase().includes(queryLower);
+          const aboutMatch = about.toLowerCase().includes(queryLower);
+          const idMatch = isPartialHex && event.id.toLowerCase().startsWith(queryLower);
+          
+          if (nameMatch || aboutMatch || idMatch) {
+            foundChannels.push({
+              id: event.id,
+              name: name || `Channel ${event.id.slice(0, 8)}`,
+              about: about,
+              picture: metadata.picture,
+              createdAt: event.created_at,
+              creatorPubkey: event.pubkey,
+            });
+          }
+        } catch {
+          // Invalid JSON content, skip
+        }
+      }
+
+      console.log('[useNostr] Found', foundChannels.length, 'matching channels');
+      return foundChannels.slice(0, 20); // Limit to 20 results
+    } catch (err) {
+      console.error('[useNostr] Channel search failed:', err);
+      return [];
+    }
+  }, [isConnected, channels]);
 
   // NIP-05 verification
   const verifyNip05 = useCallback(async (nip05: string, pubkey: string): Promise<boolean> => {
@@ -585,7 +793,9 @@ export function useNostr() {
     sendChannelMessage,
     joinChannel,
     leaveChannel,
+    removeChannel,
     getMessagesForChannel,
+    searchChannels,
     
     // NIP-05
     verifyNip05,

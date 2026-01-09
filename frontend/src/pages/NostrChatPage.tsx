@@ -28,7 +28,7 @@ const NostrChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { identity, status: authStatus, createIdentity, signInWithPrivateKey } = useAuth();
-  const { isConnected, isConnecting, relayStatuses, contacts, channels, myProfile, error, connect, disconnect, sendDirectMessage, getMessagesForContact, updateProfile, fetchProfile, addContact, createChannel, joinExistingChannel, sendChannelMessage, joinChannel, getMessagesForChannel, verifyNip05, searchByNip05 } = useNostr();
+  const { isConnected, isConnecting, relayStatuses, contacts, channels, myProfile, error, connect, disconnect, sendDirectMessage, getMessagesForContact, updateProfile, fetchProfile, addContact, createChannel, joinExistingChannel, sendChannelMessage, joinChannel, getMessagesForChannel, verifyNip05, searchByNip05, searchChannels, removeChannel } = useNostr();
 
   const [selectedContact, setSelectedContact] = useState<NostrContact | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
@@ -71,6 +71,10 @@ const NostrChatPage: React.FC = () => {
   // Network search state
   const [isSearching, setIsSearching] = useState(false);
   const [networkSearchResult, setNetworkSearchResult] = useState<{ pubkey: string; name?: string; nip05?: string } | null>(null);
+  
+  // Channel search state
+  const [channelSearchResults, setChannelSearchResults] = useState<Array<{ id: string; name: string; about?: string; creatorPubkey: string }>>([]);
+  const [isSearchingChannels, setIsSearchingChannels] = useState(false);
   
   // Lightbox state for viewing full-size images
   const [lightboxImage, setLightboxImage] = useState<{ src: string; name: string } | null>(null);
@@ -210,6 +214,29 @@ const NostrChatPage: React.FC = () => {
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, searchByNip05, fetchProfile]);
+
+  // Channel search - search the network when in channels tab
+  useEffect(() => {
+    if (activeTab !== 'channels' || !searchQuery || searchQuery.length < 2 || !isConnected) {
+      setChannelSearchResults([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsSearchingChannels(true);
+      try {
+        const results = await searchChannels(searchQuery);
+        setChannelSearchResults(results);
+      } catch (err) {
+        console.error('[NostrChat] Channel search failed:', err);
+        setChannelSearchResults([]);
+      } finally {
+        setIsSearchingChannels(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, activeTab, isConnected, searchChannels]);
 
   // Save contact to shared storage (same as ContactsPage)
   const handleSaveContactToStorage = async () => {
@@ -767,23 +794,90 @@ const NostrChatPage: React.FC = () => {
             <>
               <div className="p-2 space-y-2">
                 <Button onClick={() => setIsNewChannelOpen(true)} variant="outline" className="w-full"><Hash className="w-4 h-4" /> Create Channel</Button>
-                <Button onClick={() => setIsJoinChannelOpen(true)} variant="secondary" className="w-full"><UserPlus className="w-4 h-4" /> Join Channel</Button>
+                <Button onClick={() => setIsJoinChannelOpen(true)} variant="secondary" className="w-full"><UserPlus className="w-4 h-4" /> Join by ID</Button>
               </div>
               <div className="border-t border-white/5" />
-              {channels.length === 0 ? (
-                <div className="p-4 text-center"><p className="text-pigeon-text-muted text-sm">No channels yet</p><p className="text-pigeon-text-muted text-xs">Create one or join existing</p></div>
-              ) : (
-                channels.filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(channel => (
-                  <div key={channel.id} onClick={() => setSelectedChannel(channel.id)} className={`mx-2 mb-1 p-3 rounded-md cursor-pointer ${selectedChannel === channel.id ? 'bg-pigeon-primary/20' : 'hover:bg-pigeon-surface'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-md bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center"><Hash className="w-4 h-4 text-pigeon-text" /></div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-pigeon-text font-medium">{channel.name}</p>
-                        {channel.about && <p className="text-xs text-pigeon-text-secondary truncate">{channel.about}</p>}
+              
+              {/* Channel search results from network */}
+              {isSearchingChannels && (
+                <div className="p-3 text-center">
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-pigeon-primary" />
+                  <p className="text-xs text-pigeon-text-muted mt-1">Searching network...</p>
+                </div>
+              )}
+              
+              {channelSearchResults.length > 0 && (
+                <div className="mx-2 mb-2">
+                  <p className="text-xs text-pigeon-text-muted mb-2 px-1">Found on network:</p>
+                  {channelSearchResults.map(channel => (
+                    <div 
+                      key={channel.id} 
+                      onClick={async () => {
+                        try {
+                          await joinExistingChannel(channel.id);
+                          setSearchQuery('');
+                          setChannelSearchResults([]);
+                          setSelectedChannel(channel.id);
+                          showNotification('success', `Joined "${channel.name}"`);
+                        } catch (err) {
+                          showNotification('error', err instanceof Error ? err.message : 'Failed to join');
+                        }
+                      }} 
+                      className="p-3 mb-1 rounded-md cursor-pointer bg-pigeon-primary/10 hover:bg-pigeon-primary/20 border border-pigeon-primary/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-md bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                          <Globe className="w-4 h-4 text-pigeon-text" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-pigeon-text font-medium">{channel.name}</p>
+                          {channel.about && <p className="text-xs text-pigeon-text-secondary truncate">{channel.about}</p>}
+                          <p className="text-xs text-pigeon-primary">Click to join</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
+              )}
+              
+              {/* Existing joined channels */}
+              {channels.length === 0 && channelSearchResults.length === 0 && !isSearchingChannels ? (
+                <div className="p-4 text-center">
+                  <p className="text-pigeon-text-muted text-sm">No channels yet</p>
+                  <p className="text-pigeon-text-muted text-xs">Search to discover or create one</p>
+                </div>
+              ) : (
+                <>
+                  {channels.length > 0 && <p className="text-xs text-pigeon-text-muted mx-3 mb-1">Your channels:</p>}
+                  {channels.filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(channel => (
+                    <div key={channel.id} className={`mx-2 mb-1 p-3 rounded-md ${selectedChannel === channel.id ? 'bg-pigeon-primary/20' : 'hover:bg-pigeon-surface'} group`}>
+                      <div className="flex items-center gap-3">
+                        <div 
+                          onClick={() => setSelectedChannel(channel.id)} 
+                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                        >
+                          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0"><Hash className="w-4 h-4 text-pigeon-text" /></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-pigeon-text font-medium">{channel.name}</p>
+                            {channel.about && <p className="text-xs text-pigeon-text-secondary truncate">{channel.about}</p>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedChannel === channel.id) setSelectedChannel(null);
+                            removeChannel(channel.id);
+                            showNotification('info', `Left "${channel.name}"`);
+                          }}
+                          className="p-1.5 text-pigeon-text-muted hover:text-pigeon-danger hover:bg-pigeon-danger/10 rounded opacity-0 group-hover:opacity-100 transition-all"
+                          title="Leave channel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </>
           )}
@@ -931,17 +1025,31 @@ const NostrChatPage: React.FC = () => {
                   <p className="text-xs text-pigeon-text-secondary">{channels.find(c => c.id === selectedChannel)?.about || 'Public channel'}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(selectedChannel);
-                  showNotification('success', 'Channel ID copied!');
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs bg-pigeon-surface rounded-lg text-pigeon-text-secondary hover:text-pigeon-text hover:bg-white/10 transition-colors"
-                title="Copy Channel ID"
-              >
-                <span className="font-mono truncate max-w-[120px]">{selectedChannel.slice(0, 8)}...</span>
-                <Copy className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedChannel);
+                    showNotification('success', 'Channel ID copied!');
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs bg-pigeon-surface rounded-lg text-pigeon-text-secondary hover:text-pigeon-text hover:bg-white/10 transition-colors"
+                  title="Copy Channel ID"
+                >
+                  <span className="font-mono truncate max-w-[80px]">{selectedChannel.slice(0, 8)}...</span>
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => {
+                    removeChannel(selectedChannel);
+                    setSelectedChannel(null);
+                    showNotification('info', 'Left channel');
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs bg-pigeon-danger/20 text-pigeon-danger rounded-lg hover:bg-pigeon-danger/30 transition-colors"
+                  title="Leave Channel"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Leave</span>
+                </button>
+              </div>
             </div>
 
             {/* Channel Messages */}
@@ -980,6 +1088,14 @@ const NostrChatPage: React.FC = () => {
                 </div>
               )}
               <div className="flex gap-2">
+                <button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={!isConnected}
+                  className="p-2 text-pigeon-text-secondary hover:text-pigeon-text hover:bg-white/5 rounded disabled:opacity-50"
+                  title="Attach file (JPG, PNG, GIF, WebP, PDF, TXT - max 100KB)"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
                 <input type="text" placeholder={isConnected ? "Message channel..." : "Connect to send messages..."} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && isConnected && handleSendMessage()} disabled={!isConnected} className="flex-1 px-4 py-2 bg-pigeon-surface rounded text-pigeon-text placeholder-pigeon-text-muted focus:outline-none disabled:opacity-50" />
                 <button onClick={handleSendMessage} disabled={!newMessage.trim() || !isConnected} className="p-2 bg-pigeon-primary text-pigeon-text rounded hover:bg-pigeon-primary-dark disabled:opacity-50"><Send className="w-5 h-5" /></button>
               </div>

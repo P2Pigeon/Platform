@@ -350,8 +350,8 @@ const DataRoom: React.FC = () => {
             <div className="text-center py-10"><File className="w-12 h-12 text-gray-500 mx-auto mb-4" /><p className="text-gray-500">No files have been shared yet</p><button onClick={handleUploadClick} className="mt-4 flex items-center gap-2 px-4 py-2 bg-cyan-600/20 text-cyan-400 rounded hover:bg-cyan-600/10 mx-auto"><Upload className="w-4 h-4" /> Upload the first file</button></div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {files.map(file => (
-                <div key={file.id} className="bg-gray-900 rounded-lg p-3 space-y-2">
+              {files.map((file, index) => (
+                <div key={file.id || `file-${index}`} className="bg-gray-900 rounded-lg p-3 space-y-2">
                   <div className="flex items-center gap-2"><File className="w-4 h-4 text-cyan-400" /><span className="font-medium text-white truncate" title={file.name}>{file.name}</span></div>
                   <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
                   {uploadProgress[file.name] && <div className="h-1 bg-gray-700 rounded"><div className="h-1 bg-cyan-500 rounded" style={{ width: `${uploadProgress[file.name].percentage}%` }} /></div>}
@@ -378,8 +378,8 @@ const DataRoom: React.FC = () => {
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2"><Users className="w-4 h-4 text-cyan-400" /><h3 className="font-semibold text-white">Connected Users ({room.connectedUsers?.length || 0})</h3></div>
             {room.connectedUsers && room.connectedUsers.length > 0 ? (
-              <div className="space-y-2">{room.connectedUsers.map(userId => (
-                <div key={userId} className="flex justify-between items-center p-2 bg-gray-900/50 rounded">
+              <div className="space-y-2">{room.connectedUsers.map((userId, index) => (
+                <div key={`user-${userId}-${index}`} className="flex justify-between items-center p-2 bg-gray-900/50 rounded">
                   <div className="flex items-center gap-2"><div className="w-2 h-2 bg-green-400 rounded-full" /><span className="text-sm font-mono text-gray-300 truncate max-w-[120px]">{userId === currentUserId ? 'You' : userId.slice(0, 8) + '...'}</span>{userId === room.owner && <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 text-xs rounded">Owner</span>}</div>
                   {isOwner && userId !== room.owner && <button onClick={() => handleRemoveUser(userId)} className="p-1 text-red-400 hover:bg-red-500/10 rounded"><UserMinus className="w-3 h-3" /></button>}
                 </div>
@@ -391,8 +391,8 @@ const DataRoom: React.FC = () => {
             <div className="bg-gray-800 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2"><Lock className="w-4 h-4 text-orange-400" /><h3 className="font-semibold text-white">Pending Requests ({pendingRequests.length})</h3></div>
               {pendingRequests.length > 0 ? (
-                <div className="space-y-3">{pendingRequests.map(request => (
-                  <div key={request.id} className="p-3 bg-orange-900/30 rounded-md space-y-2">
+                <div className="space-y-3">{pendingRequests.map((request, index) => (
+                  <div key={request.id || `req-${index}`} className="p-3 bg-orange-900/30 rounded-md space-y-2">
                     <div className="flex justify-between"><span className="font-bold text-sm text-white">{request.userName || request.userId.slice(0, 8) + '...'}</span><span className="px-2 py-0.5 bg-orange-600/30 text-orange-300 text-xs rounded">Pending</span></div>
                     {request.email && <p className="text-xs text-gray-500">{request.email}</p>}
                     {request.message && <p className="text-sm italic text-gray-400">"{request.message}"</p>}
@@ -406,8 +406,8 @@ const DataRoom: React.FC = () => {
           <div className="bg-gray-800 rounded-lg p-4">
             <h3 className="font-semibold text-white mb-2">Approved Members ({room.participants?.length || 0})</h3>
             {room.participants && room.participants.length > 0 ? (
-              <div className="space-y-1">{room.participants.map(userId => (
-                <div key={userId} className="flex justify-between py-1"><span className="text-sm font-mono text-gray-300 truncate max-w-[150px]">{userId === currentUserId ? 'You' : userId.slice(0, 12) + '...'}</span>{userId === room.owner && <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 text-xs rounded">Owner</span>}</div>
+              <div className="space-y-1">{room.participants.map((userId, index) => (
+                <div key={`participant-${userId}-${index}`} className="flex justify-between py-1"><span className="text-sm font-mono text-gray-300 truncate max-w-[150px]">{userId === currentUserId ? 'You' : userId.slice(0, 12) + '...'}</span>{userId === room.owner && <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 text-xs rounded">Owner</span>}</div>
               ))}</div>
             ) : <p className="text-sm text-gray-500">No members</p>}
           </div>

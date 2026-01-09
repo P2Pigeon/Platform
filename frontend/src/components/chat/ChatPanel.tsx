@@ -15,7 +15,7 @@
  * Fetches latest OpenRouter models dynamically with ping/pong connection test
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { X, Send, Settings, Loader2, Bot, HelpCircle, RefreshCw, Zap, CheckCircle, XCircle } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 
@@ -31,6 +31,7 @@ interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
   hasOtherPanel?: boolean;
+  roomId?: string;
 }
 
 interface OpenRouterModel {
@@ -40,37 +41,41 @@ interface OpenRouterModel {
   status?: 'testing' | 'online' | 'offline';
 }
 
-// Fallback models if API fetch fails
+// Fallback models if API fetch fails - Updated Jan 2026
 const FALLBACK_MODELS: OpenRouterModel[] = [
+  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash (Free)' },
+  { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
+  { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek V3.2' },
+  { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
+  { id: 'google/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview' },
   { id: 'openai/gpt-4o', name: 'GPT-4o' },
   { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
   { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
   { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
-  { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Flash' },
   { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B' },
-  { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
-  { id: 'qwen/qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B' },
-  { id: 'mistralai/mistral-large-2411', name: 'Mistral Large' },
-  { id: 'cohere/command-r-plus', name: 'Command R+' },
+  { id: 'qwen/qwen3-vl-32b-instruct', name: 'Qwen 3 VL 32B' },
+  { id: 'mistralai/mistral-large-2512', name: 'Mistral Large' },
+  { id: 'mistralai/devstral-2512:free', name: 'Devstral (Free)' },
+  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1.5', name: 'Nemotron Super 49B' },
 ];
 
-// Top models to prioritize (latest/best)
+// Top models to prioritize (latest/best) - Updated Jan 2026
 const TOP_MODEL_IDS = [
+  'google/gemini-2.0-flash-exp:free',
+  'deepseek/deepseek-chat',
+  'deepseek/deepseek-v3.2',
+  'google/gemini-3-flash-preview',
+  'google/gemini-3-pro-preview',
   'openai/gpt-4o',
   'openai/gpt-4o-mini', 
   'anthropic/claude-3.5-sonnet',
   'anthropic/claude-3-haiku',
-  'google/gemini-2.0-flash-exp:free',
-  'google/gemini-pro-1.5',
   'meta-llama/llama-3.3-70b-instruct',
-  'deepseek/deepseek-chat',
-  'qwen/qwen-2.5-72b-instruct',
-  'mistralai/mistral-large-2411',
-  'cohere/command-r-plus',
+  'qwen/qwen3-vl-32b-instruct',
+  'mistralai/mistral-large-2512',
+  'mistralai/devstral-2512:free',
+  'nvidia/llama-3.3-nemotron-super-49b-v1.5',
   'x-ai/grok-2-1212',
-  'perplexity/llama-3.1-sonar-huge-128k-online',
-  'nvidia/llama-3.1-nemotron-70b-instruct',
-  'amazon/nova-pro-v1',
 ];
 
 const HELP_TEXT = `**Available Commands:**
@@ -82,15 +87,45 @@ const HELP_TEXT = `**Available Commands:**
 
 **Settings:** Click the ⚙️ icon to configure your OpenRouter API key and select a model.`;
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = false }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { sender: 'Alice', message: 'Hey everyone!', isMe: false },
-    { sender: 'You', message: 'Hello!', isMe: true },
-  ]);
+const CHAT_STORAGE_KEY = 'pigeon_room_chat_';
+
+const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = false, roomId }) => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Force layout recalculation on mount
+  useLayoutEffect(() => {
+    if (isOpen) {
+      setMounted(false);
+      requestAnimationFrame(() => {
+        setMounted(true);
+      });
+    }
+  }, [isOpen]);
+
+  // Load messages from localStorage when roomId changes
+  useEffect(() => {
+    if (roomId) {
+      try {
+        const stored = localStorage.getItem(CHAT_STORAGE_KEY + roomId);
+        if (stored) {
+          setMessages(JSON.parse(stored));
+        } else {
+          setMessages([]);
+        }
+      } catch (e) {
+        console.error('Failed to load chat messages:', e);
+        setMessages([]);
+      }
+    } else {
+      setMessages([]);
+    }
+  }, [roomId]);
   const [newMessage, setNewMessage] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('openrouter_api_key') || '');
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('openrouter_model') || 'openai/gpt-4o-mini');
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('openrouter_model') || 'google/gemini-2.0-flash-exp:free');
   const [isProcessing, setIsProcessing] = useState(false);
   const [models, setModels] = useState<OpenRouterModel[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -204,6 +239,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Save messages to localStorage when they change
+  useEffect(() => {
+    if (roomId && messages.length > 0) {
+      try {
+        localStorage.setItem(CHAT_STORAGE_KEY + roomId, JSON.stringify(messages));
+      } catch (e) {
+        console.error('Failed to save chat messages:', e);
+      }
+    }
+  }, [messages, roomId]);
+
   const saveSettings = () => {
     localStorage.setItem('openrouter_api_key', apiKey);
     localStorage.setItem('openrouter_model', selectedModel);
@@ -222,6 +268,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
+          'X-Title': 'P2Pigeon',
         },
         body: JSON.stringify({
           model: selectedModel,
@@ -359,9 +406,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
     : 'right-0';
 
   return (
-    <div className={`absolute top-0 ${positionClass} w-full md:w-[320px] h-full bg-gray-900 md:rounded-xl shadow-2xl flex flex-col z-30 border-l md:border border-gray-700/50`}>
+    <div ref={panelRef} className={`absolute top-0 bottom-0 ${positionClass} w-full md:w-[320px] bg-gray-900 md:rounded-xl shadow-2xl z-30 border-l md:border border-gray-700/50`} style={{ display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div className="flex justify-between items-center p-3 border-b border-gray-700/50">
+      <div className="flex-none flex justify-between items-center p-3 border-b border-gray-700/50">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-white">Chat</h2>
           <button 
@@ -455,7 +502,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
       )}
       
       {/* Messages */}
-      <div className="flex flex-col gap-3 p-3 flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+        <div className="flex flex-col gap-3">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
@@ -483,6 +531,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
           </div>
         ))}
         <div ref={messagesEndRef} />
+        </div>
       </div>
       
       {/* Input */}
