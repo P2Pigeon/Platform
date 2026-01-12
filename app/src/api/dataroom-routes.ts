@@ -175,6 +175,8 @@ router.post('/:roomId/files', upload.single('file'), async (req: Request, res: R
     const { roomId } = req.params;
     const userId = req.headers['x-user-id'] as string || 'anonymous';
     const file = req.file;
+    const downloadable = req.body.downloadable !== 'false';
+    const viewOnly = req.body.viewOnly === 'true';
     
     if (!file) {
       return res.status(400).json({ error: 'No file provided' });
@@ -185,7 +187,8 @@ router.post('/:roomId/files', upload.single('file'), async (req: Request, res: R
       file.originalname,
       file.buffer,
       userId,
-      file.mimetype
+      file.mimetype,
+      { downloadable, viewOnly }
     );
     
     log.info(`File uploaded to room ${roomId}: ${file.originalname}`);
@@ -531,6 +534,95 @@ router.post('/dht/reannounce', async (req: Request, res: Response) => {
       error: 'Failed to re-announce drives',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// ============ STATS TRACKING ROUTES ============
+
+/**
+ * Track file view
+ * POST /api/v1/dataroom/:roomId/files/:filePath/view
+ */
+router.post('/:roomId/files/*/view', async (req: Request, res: Response) => {
+  try {
+    await ensureInitialized();
+    
+    const { roomId } = req.params;
+    const filePath = req.params[0];
+    const userId = req.headers['x-user-id'] as string || 'anonymous';
+    
+    hyperdriveManager.trackFileView(roomId, `/${filePath}`, userId);
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    log.error('Failed to track file view:', error);
+    res.status(500).json({ error: 'Failed to track file view' });
+  }
+});
+
+/**
+ * Track file download
+ * POST /api/v1/dataroom/:roomId/files/:filePath/download
+ */
+router.post('/:roomId/files/*/download', async (req: Request, res: Response) => {
+  try {
+    await ensureInitialized();
+    
+    const { roomId } = req.params;
+    const filePath = req.params[0];
+    const userId = req.headers['x-user-id'] as string || 'anonymous';
+    
+    hyperdriveManager.trackFileDownload(roomId, `/${filePath}`, userId);
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    log.error('Failed to track file download:', error);
+    res.status(500).json({ error: 'Failed to track file download' });
+  }
+});
+
+/**
+ * Get file stats (owner only)
+ * GET /api/v1/dataroom/:roomId/files/:filePath/stats
+ */
+router.get('/:roomId/files/*/stats', async (req: Request, res: Response) => {
+  try {
+    await ensureInitialized();
+    
+    const { roomId } = req.params;
+    const filePath = req.params[0];
+    const userId = req.headers['x-user-id'] as string || 'anonymous';
+    
+    const stats = hyperdriveManager.getFileStats(roomId, `/${filePath}`, userId);
+    
+    if (!stats) {
+      return res.status(403).json({ error: 'Only room owner can view stats' });
+    }
+    
+    res.status(200).json({ success: true, stats });
+  } catch (error) {
+    log.error('Failed to get file stats:', error);
+    res.status(500).json({ error: 'Failed to get file stats' });
+  }
+});
+
+/**
+ * Get all room file stats (owner only)
+ * GET /api/v1/dataroom/:roomId/stats
+ */
+router.get('/:roomId/stats', async (req: Request, res: Response) => {
+  try {
+    await ensureInitialized();
+    
+    const { roomId } = req.params;
+    const userId = req.headers['x-user-id'] as string || 'anonymous';
+    
+    const stats = hyperdriveManager.getRoomFileStats(roomId, userId);
+    
+    res.status(200).json({ success: true, stats });
+  } catch (error) {
+    log.error('Failed to get room stats:', error);
+    res.status(500).json({ error: 'Failed to get room stats' });
   }
 });
 

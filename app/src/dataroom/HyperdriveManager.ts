@@ -95,6 +95,36 @@ export interface DataRoomFile {
   uploadedAt: Date;
   checksum: string;
   isDirectory: boolean;
+  // Media viewer settings
+  downloadable: boolean;
+  viewOnly: boolean;
+  // Stats
+  viewCount: number;
+  downloadCount: number;
+}
+
+/**
+ * Per-user stats for NDA tracking
+ */
+export interface FileUserStat {
+  userId: string;
+  userName?: string;
+  viewCount: number;
+  downloadCount: number;
+  lastViewedAt?: Date;
+  lastDownloadedAt?: Date;
+}
+
+/**
+ * File stats response
+ */
+export interface FileStats {
+  fileId: string;
+  fileName: string;
+  filePath: string;
+  totalViews: number;
+  totalDownloads: number;
+  userStats?: FileUserStat[];
 }
 
 /**
@@ -131,6 +161,13 @@ interface DHTStatus {
   error?: string;
 }
 
+// File stats storage (per room -> per file path)
+interface FileStatsData {
+  viewCount: number;
+  downloadCount: number;
+  userStats: Map<string, FileUserStat>;
+}
+
 export class HyperdriveManager {
   private swarm: typeof Hyperswarm | null = null;
   private corestore: typeof Corestore | null = null;
@@ -138,6 +175,12 @@ export class HyperdriveManager {
   private dataRooms: Map<string, DataRoom> = new Map();
   private config: HyperdriveManagerConfig;
   private isInitialized = false;
+  
+  // File metadata (downloadable/viewOnly settings)
+  private fileMetadata: Map<string, Map<string, { downloadable: boolean; viewOnly: boolean }>> = new Map();
+  
+  // Stats tracking (roomId -> filePath -> stats)
+  private fileStats: Map<string, Map<string, FileStatsData>> = new Map();
   
   // DHT hardening
   private dhtStatus: Map<string, DHTStatus> = new Map();
@@ -329,6 +372,65 @@ export class HyperdriveManager {
         log.warn('Failed to load rooms from disk:', err);
       }
     }
+    
+    // Load file metadata
+    const metadataFile = path.join(this.config.storagePath, 'file-metadata.json');
+    if (fs.existsSync(metadataFile)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(metadataFile, 'utf-8'));
+        for (const [roomId, files] of Object.entries(data)) {
+          this.fileMetadata.set(roomId, new Map(Object.entries(files as Record<string, any>)));
+        }
+      } catch (err) {
+        log.warn('Failed to load file metadata:', err);
+      }
+    }
+    
+    // Load stats
+    const statsFile = path.join(this.config.storagePath, 'file-stats.json');
+    if (fs.existsSync(statsFile)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(statsFile, 'utf-8'));
+        for (const [roomId, files] of Object.entries(data)) {
+          const roomStats = new Map<string, FileStatsData>();
+          for (const [filePath, stats] of Object.entries(files as Record<string, any>)) {
+            roomStats.set(filePath, {
+              viewCount: stats.viewCount || 0,
+              downloadCount: stats.downloadCount || 0,
+              userStats: new Map(Object.entries(stats.userStats || {}))
+            });
+          }
+          this.fileStats.set(roomId, roomStats);
+        }
+      } catch (err) {
+        log.warn('Failed to load file stats:', err);
+      }
+    }
+  }
+  
+  private saveFileMetadata(): void {
+    const metadataFile = path.join(this.config.storagePath, 'file-metadata.json');
+    const data: Record<string, Record<string, any>> = {};
+    for (const [roomId, files] of this.fileMetadata) {
+      data[roomId] = Object.fromEntries(files);
+    }
+    fs.writeFileSync(metadataFile, JSON.stringify(data, null, 2));
+  }
+  
+  private saveFileStats(): void {
+    const statsFile = path.join(this.config.storagePath, 'file-stats.json');
+    const data: Record<string, Record<string, any>> = {};
+    for (const [roomId, files] of this.fileStats) {
+      data[roomId] = {};
+      for (const [filePath, stats] of files) {
+        data[roomId][filePath] = {
+          viewCount: stats.viewCount,
+          downloadCount: stats.downloadCount,
+          userStats: Object.fromEntries(stats.userStats)
+        };
+      }
+    }
+    fs.writeFileSync(statsFile, JSON.stringify(data, null, 2));
   }
 
   /**
@@ -494,6 +596,7 @@ export class HyperdriveManager {
     fileBuffer: Buffer,
     uploadedBy: string,
     mimeType?: string,
+    options?: { downloadable?: boolean; viewOnly?: boolean },
     onProgress?: (progress: FileTransferProgress) => void
   ): Promise<DataRoomFile> {
     const dataRoom = this.dataRooms.get(roomId);
@@ -523,6 +626,16 @@ export class HyperdriveManager {
     // Write file to drive
     await drive.put(normalizedPath, fileBuffer);
 
+    // Store file metadata (downloadable/viewOnly)
+    const downloadable = options?.downloadable ?? true;
+    const viewOnly = options?.viewOnly ?? false;
+    
+    if (!this.fileMetadata.has(roomId)) {
+      this.fileMetadata.set(roomId, new Map());
+    }
+    this.fileMetadata.get(roomId)!.set(normalizedPath, { downloadable, viewOnly });
+    this.saveFileMetadata();
+
     // Create file metadata
     const fileMetadata: DataRoomFile = {
       path: normalizedPath,
@@ -532,7 +645,11 @@ export class HyperdriveManager {
       uploadedBy,
       uploadedAt: new Date(),
       checksum,
-      isDirectory: false
+      isDirectory: false,
+      downloadable,
+      viewOnly,
+      viewCount: 0,
+      downloadCount: 0
     };
 
     // Update room stats
@@ -640,6 +757,11 @@ export class HyperdriveManager {
       const stat = await drive.entry(entryPath);
       
       if (stat) {
+        // Get file metadata
+        const meta = this.fileMetadata.get(roomId)?.get(entryPath) || { downloadable: true, viewOnly: false };
+        // Get file stats
+        const stats = this.fileStats.get(roomId)?.get(entryPath);
+        
         files.push({
           path: entryPath,
           name: entry,
@@ -648,7 +770,11 @@ export class HyperdriveManager {
           uploadedBy: 'unknown',
           uploadedAt: new Date(),
           checksum: '',
-          isDirectory: false
+          isDirectory: false,
+          downloadable: meta.downloadable,
+          viewOnly: meta.viewOnly,
+          viewCount: stats?.viewCount || 0,
+          downloadCount: stats?.downloadCount || 0
         });
       }
     }
@@ -685,6 +811,158 @@ export class HyperdriveManager {
     dataRoom.lastModified = new Date();
 
     log.info(`File deleted: ${normalizedPath}`);
+  }
+
+  // ============ STATS TRACKING METHODS ============
+
+  /**
+   * Track a file view
+   */
+  trackFileView(roomId: string, filePath: string, userId: string, userName?: string): void {
+    const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    
+    if (!this.fileStats.has(roomId)) {
+      this.fileStats.set(roomId, new Map());
+    }
+    
+    const roomStats = this.fileStats.get(roomId)!;
+    if (!roomStats.has(normalizedPath)) {
+      roomStats.set(normalizedPath, {
+        viewCount: 0,
+        downloadCount: 0,
+        userStats: new Map()
+      });
+    }
+    
+    const stats = roomStats.get(normalizedPath)!;
+    stats.viewCount++;
+    
+    // Track per-user stats
+    if (!stats.userStats.has(userId)) {
+      stats.userStats.set(userId, {
+        userId,
+        userName,
+        viewCount: 0,
+        downloadCount: 0
+      });
+    }
+    const userStat = stats.userStats.get(userId)!;
+    userStat.viewCount++;
+    userStat.lastViewedAt = new Date();
+    if (userName) userStat.userName = userName;
+    
+    this.saveFileStats();
+    log.info(`File view tracked: ${normalizedPath} by ${userId}`);
+  }
+
+  /**
+   * Track a file download
+   */
+  trackFileDownload(roomId: string, filePath: string, userId: string, userName?: string): void {
+    const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    
+    if (!this.fileStats.has(roomId)) {
+      this.fileStats.set(roomId, new Map());
+    }
+    
+    const roomStats = this.fileStats.get(roomId)!;
+    if (!roomStats.has(normalizedPath)) {
+      roomStats.set(normalizedPath, {
+        viewCount: 0,
+        downloadCount: 0,
+        userStats: new Map()
+      });
+    }
+    
+    const stats = roomStats.get(normalizedPath)!;
+    stats.downloadCount++;
+    
+    // Track per-user stats
+    if (!stats.userStats.has(userId)) {
+      stats.userStats.set(userId, {
+        userId,
+        userName,
+        viewCount: 0,
+        downloadCount: 0
+      });
+    }
+    const userStat = stats.userStats.get(userId)!;
+    userStat.downloadCount++;
+    userStat.lastDownloadedAt = new Date();
+    if (userName) userStat.userName = userName;
+    
+    this.saveFileStats();
+    log.info(`File download tracked: ${normalizedPath} by ${userId}`);
+  }
+
+  /**
+   * Get stats for a specific file (owner only)
+   */
+  getFileStats(roomId: string, filePath: string, requesterId: string): FileStats | null {
+    const room = this.dataRooms.get(roomId);
+    if (!room || room.owner !== requesterId) {
+      return null; // Only owner can view stats
+    }
+    
+    const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    const stats = this.fileStats.get(roomId)?.get(normalizedPath);
+    
+    if (!stats) {
+      return {
+        fileId: normalizedPath,
+        fileName: path.basename(normalizedPath),
+        filePath: normalizedPath,
+        totalViews: 0,
+        totalDownloads: 0,
+        userStats: room.ndaText ? [] : undefined // Include user stats only for NDA rooms
+      };
+    }
+    
+    return {
+      fileId: normalizedPath,
+      fileName: path.basename(normalizedPath),
+      filePath: normalizedPath,
+      totalViews: stats.viewCount,
+      totalDownloads: stats.downloadCount,
+      userStats: room.ndaText ? Array.from(stats.userStats.values()) : undefined
+    };
+  }
+
+  /**
+   * Get stats for all files in a room (owner only)
+   */
+  getRoomFileStats(roomId: string, requesterId: string): FileStats[] {
+    const room = this.dataRooms.get(roomId);
+    if (!room || room.owner !== requesterId) {
+      return []; // Only owner can view stats
+    }
+    
+    const result: FileStats[] = [];
+    const roomStats = this.fileStats.get(roomId);
+    
+    if (roomStats) {
+      for (const [filePath, stats] of roomStats) {
+        result.push({
+          fileId: filePath,
+          fileName: path.basename(filePath),
+          filePath,
+          totalViews: stats.viewCount,
+          totalDownloads: stats.downloadCount,
+          userStats: room.ndaText ? Array.from(stats.userStats.values()) : undefined
+        });
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Check if file is downloadable
+   */
+  isFileDownloadable(roomId: string, filePath: string): boolean {
+    const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    const meta = this.fileMetadata.get(roomId)?.get(normalizedPath);
+    return meta?.downloadable ?? true;
   }
 
   /**
