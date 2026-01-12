@@ -337,7 +337,7 @@ const RoomPage: React.FC = () => {
   }
 
   return (
-    <div className="h-full p-4">
+    <div className="h-[calc(100vh-4rem)] p-4">
       <div className="flex flex-col h-full w-full bg-gray-950 overflow-hidden rounded-xl border border-white/10">
       {notification && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-md ${notification.type === 'success' ? 'bg-green-900/90 text-green-300' : notification.type === 'warning' ? 'bg-yellow-900/90 text-yellow-300' : 'bg-blue-900/90 text-blue-300'}`}>{notification.message}</div>
@@ -348,8 +348,8 @@ const RoomPage: React.FC = () => {
       </div>
       
       {/* Main content */}
-      <div className="flex flex-1 min-h-0 relative overflow-hidden">
-        <div className="flex-1 relative"><VideoGrid securityConfig={securityConfig} encryptionKey={encryptionKey} /></div>
+      <div className="flex-1 flex min-h-0 relative overflow-hidden">
+        <div className="flex-1 relative h-full"><VideoGrid securityConfig={securityConfig} encryptionKey={encryptionKey} /></div>
         {/* Side panels - positioned relative on desktop for side-by-side layout */}
         <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} hasOtherPanel={isParticipantsOpen} roomId={roomId} />
         <ParticipantsPanel 

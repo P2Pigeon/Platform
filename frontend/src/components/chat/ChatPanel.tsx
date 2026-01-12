@@ -406,9 +406,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
     : 'right-0';
 
   return (
-    <div ref={panelRef} className={`absolute top-0 bottom-0 ${positionClass} w-full md:w-[320px] bg-gray-900 md:rounded-xl shadow-2xl z-30 border-l md:border border-gray-700/50`} style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <div className="flex-none flex justify-between items-center p-3 border-b border-gray-700/50">
+    <div ref={panelRef} className={`fixed ${positionClass} w-full md:w-[320px] bg-gray-900 rounded-xl shadow-2xl z-30 border border-gray-700/50`} style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', top: '4.5rem', bottom: '4.5rem' }}>
+      {/* Header + Settings wrapper */}
+      <div>
+        <div className="flex justify-between items-center p-3 border-b border-gray-700/50">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-white">Chat</h2>
           <button 
@@ -500,9 +501,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isOpen, onClose, hasOtherPanel = 
           </button>
         </div>
       )}
+      </div>
       
       {/* Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+      <div className="overflow-y-auto p-3">
         <div className="flex flex-col gap-3">
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>

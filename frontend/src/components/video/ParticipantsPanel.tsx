@@ -49,7 +49,7 @@ const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-full md:w-72 bg-gray-900 border-l border-gray-800 flex flex-col z-20">
+    <div className="fixed right-0 w-full md:w-72 bg-gray-900 rounded-xl border border-gray-700/50 z-20" style={{ display: 'grid', gridTemplateRows: 'auto 1fr', top: '4.5rem', bottom: '4.5rem' }}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         <h3 className="text-white font-medium">Participants ({allParticipants.length + 1})</h3>
@@ -62,7 +62,7 @@ const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       </div>
 
       {/* Participants List */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="overflow-y-auto p-2">
         {/* Local user (You) */}
         <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/50 mb-2">
           <div className="w-10 h-10 rounded-full bg-cyan-600 flex items-center justify-center">

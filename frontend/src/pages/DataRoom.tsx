@@ -14,25 +14,26 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clipboard, ClipboardCheck, Upload, Lock, Download, Trash2, File, RefreshCw, Users, Check, X, UserMinus, Globe, Eye, FileText, Loader2, AlertTriangle } from 'lucide-react';
+import { Clipboard, ClipboardCheck, Upload, Lock, Download, Trash2, File, RefreshCw, Users, Check, X, UserMinus, Globe, Eye, FileText, Loader2, AlertTriangle, BarChart3, EyeOff, Play } from 'lucide-react';
 import {
-  getDataRoomWithAccess, listFiles, uploadFile, downloadFile, deleteFile, formatFileSize,
-  DataRoom as DataRoomType, DataRoomFile, UploadProgress, AccessRequest,
+  getDataRoomWithAccess, listFiles, downloadFile, deleteFile, formatFileSize,
+  DataRoom as DataRoomType, DataRoomFile, AccessRequest,
   getPendingRequests, approveAccess, rejectAccess, removeUserAccess,
-  connectToRoom, disconnectFromRoom, getCurrentUserId, requestAccess, UserAccessStatus
+  connectToRoom, disconnectFromRoom, getCurrentUserId, requestAccess, UserAccessStatus,
+  trackFileDownload
 } from '../services/dataroom/DataRoomAPI';
+import MediaViewer from '../components/dataroom/MediaViewer';
+import FileStatsPanel from '../components/dataroom/FileStatsPanel';
+import UploadModal from '../components/dataroom/UploadModal';
 
 const DataRoom: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [room, setRoom] = useState<DataRoomType | null>(null);
   const [files, setFiles] = useState<DataRoomFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
-  const [isUploading, setIsUploading] = useState(false);
-  const [pendingRequests, setPendingRequests] = useState<AccessRequest[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<AccessRequest[]>([]);
   const [accessStatus, setAccessStatus] = useState<UserAccessStatus>('none');
   const [hasFileAccess, setHasFileAccess] = useState(false);
   const [isRequestingAccess, setIsRequestingAccess] = useState(false);
@@ -40,6 +41,9 @@ const DataRoom: React.FC = () => {
   const [hasCopied, setHasCopied] = useState(false);
   const [isNdaOpen, setIsNdaOpen] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<DataRoomFile | null>(null);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const currentUserId = getCurrentUserId();
 
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
@@ -118,52 +122,35 @@ const DataRoom: React.FC = () => {
 
   // Handle file upload button click
   const handleUploadClick = () => {
-    fileInputRef.current?.click();
+    setIsUploadModalOpen(true);
   };
 
-  // Handle file selection
-  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = event.target.files;
-    if (!selectedFiles || selectedFiles.length === 0 || !roomId) return;
-
-    setIsUploading(true);
-
-    try {
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        
-        showNotification('info', `Uploading ${file.name}`);
-
-        await uploadFile(roomId, file, (progress) => {
-          setUploadProgress(prev => ({
-            ...prev,
-            [file.name]: progress
-          }));
-        });
-
-        showNotification('success', `${file.name} uploaded`);
-      }
-
-      // Refresh file list
+  // Handle upload complete
+  const handleUploadComplete = async () => {
+    if (roomId) {
       const fileList = await listFiles(roomId);
       setFiles(fileList);
-    } catch (err) {
-      showNotification('error', 'Upload failed');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress({});
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
+  };
+
+  // Handle viewing a file in media viewer
+  const handleViewFile = (file: DataRoomFile) => {
+    setSelectedFile(file);
   };
 
   // Handle downloading a file
   const handleDownloadFile = async (file: DataRoomFile) => {
     if (!roomId) return;
+    if (file.viewOnly && !file.downloadable) {
+      showNotification('error', 'This file is view-only and cannot be downloaded');
+      return;
+    }
 
     try {
       showNotification('info', `Downloading ${file.name}`);
+
+      // Track download for stats
+      await trackFileDownload(roomId, file.path);
 
       const blob = await downloadFile(roomId, file.path);
       
@@ -331,10 +318,10 @@ const DataRoom: React.FC = () => {
         <div><h1 className="text-2xl font-bold text-white">{room.name || 'Data Room'}</h1><div className="flex items-center gap-2 mt-1 text-gray-500 text-sm"><Lock className="w-4 h-4" /> Secure file storage</div></div>
         <div className="flex items-center gap-2">
           <button onClick={loadRoom} className="p-2 bg-gray-700 rounded hover:bg-gray-700"><RefreshCw className="w-4 h-4 text-gray-300" /></button>
-          <button onClick={handleUploadClick} disabled={isUploading} className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 disabled:opacity-50">{isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload Files</button>
+          <button onClick={handleUploadClick} className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700"><Upload className="w-4 h-4" /> Upload Files</button>
+          {isOwner && <button onClick={() => setIsStatsOpen(true)} className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"><BarChart3 className="w-4 h-4" /> Stats</button>}
           <button onClick={handleLeaveRoom} className="px-4 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-700">Leave Room</button>
-          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} multiple />
-        </div>
+                  </div>
       </div>
       {/* Room ID Sharing */}
       <div className="bg-gray-800 rounded-lg p-4">
@@ -352,10 +339,25 @@ const DataRoom: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {files.map((file, index) => (
                 <div key={file.id || `file-${index}`} className="bg-gray-900 rounded-lg p-3 space-y-2">
-                  <div className="flex items-center gap-2"><File className="w-4 h-4 text-cyan-400" /><span className="font-medium text-white truncate" title={file.name}>{file.name}</span></div>
-                  <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
-                  {uploadProgress[file.name] && <div className="h-1 bg-gray-700 rounded"><div className="h-1 bg-cyan-500 rounded" style={{ width: `${uploadProgress[file.name].percentage}%` }} /></div>}
-                  <div className="flex gap-2"><button onClick={() => handleDownloadFile(file)} className="p-2 bg-gray-700 rounded hover:bg-gray-700"><Download className="w-4 h-4 text-gray-300" /></button><button onClick={() => handleDeleteFile(file)} className="p-2 text-red-400 hover:bg-red-500/10 rounded"><Trash2 className="w-4 h-4" /></button></div>
+                  <div className="flex items-center gap-2">
+                    <File className="w-4 h-4 text-cyan-400" />
+                    <span className="font-medium text-white truncate flex-1" title={file.name}>{file.name}</span>
+                    {file.viewOnly && <span className="px-1.5 py-0.5 bg-orange-600/30 text-orange-400 text-xs rounded flex items-center gap-1"><EyeOff className="w-3 h-3" />View Only</span>}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                    {isOwner && (file.viewCount !== undefined || file.downloadCount !== undefined) && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{file.viewCount || 0}</span>
+                        <span className="flex items-center gap-1"><Download className="w-3 h-3" />{file.downloadCount || 0}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleViewFile(file)} className="flex items-center gap-1 px-3 py-1.5 bg-cyan-600 text-white text-sm rounded hover:bg-cyan-700"><Play className="w-3 h-3" />View</button>
+                    {file.downloadable && <button onClick={() => handleDownloadFile(file)} className="p-2 bg-gray-700 rounded hover:bg-gray-600"><Download className="w-4 h-4 text-gray-300" /></button>}
+                    {isOwner && <button onClick={() => handleDeleteFile(file)} className="p-2 text-red-400 hover:bg-red-500/10 rounded"><Trash2 className="w-4 h-4" /></button>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -422,6 +424,37 @@ const DataRoom: React.FC = () => {
             <div className="flex justify-end gap-3 p-4 border-t border-gray-700"><button onClick={() => setIsNdaOpen(false)} className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded">Close</button><button onClick={() => { handleDownloadNda(); setIsNdaOpen(false); }} className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"><Download className="w-4 h-4" /> Download</button></div>
           </div>
         </div>
+      )}
+
+      {/* Media Viewer */}
+      {selectedFile && roomId && (
+        <MediaViewer
+          file={selectedFile}
+          roomId={roomId}
+          isOpen={!!selectedFile}
+          onClose={() => setSelectedFile(null)}
+          onDownload={() => showNotification('success', `${selectedFile.name} downloaded`)}
+        />
+      )}
+
+      {/* File Stats Panel (Owner Only) */}
+      {roomId && (
+        <FileStatsPanel
+          roomId={roomId}
+          isNdaRoom={!!room?.ndaText}
+          isOpen={isStatsOpen}
+          onClose={() => setIsStatsOpen(false)}
+        />
+      )}
+
+      {/* Upload Modal */}
+      {roomId && (
+        <UploadModal
+          roomId={roomId}
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUploadComplete={handleUploadComplete}
+        />
       )}
     </div>
   );

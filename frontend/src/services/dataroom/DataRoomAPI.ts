@@ -70,6 +70,31 @@ export interface DataRoomFile {
   uploadedBy: string;
   uploadedAt: string;
   checksum: string;
+  // Media viewer settings
+  downloadable: boolean;
+  viewOnly: boolean;
+  // Stats (visible to owner only)
+  viewCount?: number;
+  downloadCount?: number;
+}
+
+// Per-user view stats for NDA rooms
+export interface FileUserStat {
+  userId: string;
+  userName?: string;
+  viewCount: number;
+  downloadCount: number;
+  lastViewedAt?: string;
+  lastDownloadedAt?: string;
+}
+
+// File stats response
+export interface FileStats {
+  fileId: string;
+  fileName: string;
+  totalViews: number;
+  totalDownloads: number;
+  userStats?: FileUserStat[]; // Only for NDA rooms
 }
 
 export interface UploadProgress {
@@ -234,10 +259,13 @@ export async function listFiles(roomId: string): Promise<DataRoomFile[]> {
 export async function uploadFile(
   roomId: string,
   file: File,
+  options?: { downloadable?: boolean; viewOnly?: boolean },
   onProgress?: (progress: UploadProgress) => void
 ): Promise<DataRoomFile> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('downloadable', String(options?.downloadable ?? true));
+  formData.append('viewOnly', String(options?.viewOnly ?? false));
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -471,6 +499,93 @@ export async function disconnectFromRoom(roomId: string): Promise<void> {
   });
 }
 
+/**
+ * Track file view (for stats)
+ */
+export async function trackFileView(roomId: string, filePath: string): Promise<void> {
+  const encodedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+  await fetch(`${API_BASE}/${roomId}/files/${encodedPath}/view`, {
+    method: 'POST',
+    headers: {
+      'x-user-id': getUserId()
+    }
+  });
+}
+
+/**
+ * Track file download (for stats)
+ */
+export async function trackFileDownload(roomId: string, filePath: string): Promise<void> {
+  const encodedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+  await fetch(`${API_BASE}/${roomId}/files/${encodedPath}/download`, {
+    method: 'POST',
+    headers: {
+      'x-user-id': getUserId()
+    }
+  });
+}
+
+/**
+ * Get file stats (owner only)
+ */
+export async function getFileStats(roomId: string, filePath: string): Promise<FileStats> {
+  const encodedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+  const response = await fetch(`${API_BASE}/${roomId}/files/${encodedPath}/stats`, {
+    headers: {
+      'x-user-id': getUserId()
+    }
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to get file stats');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get all files stats for a room (owner only)
+ */
+export async function getRoomFileStats(roomId: string): Promise<FileStats[]> {
+  const response = await fetch(`${API_BASE}/${roomId}/stats`, {
+    headers: {
+      'x-user-id': getUserId()
+    }
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to get room stats');
+  }
+
+  const data = await response.json();
+  return data.stats;
+}
+
+/**
+ * Get file for viewing (returns URL or blob)
+ */
+export async function getFileForViewing(roomId: string, filePath: string): Promise<string> {
+  const encodedPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+  
+  // Track the view
+  await trackFileView(roomId, filePath);
+  
+  const response = await fetch(`${API_BASE}/${roomId}/files/${encodedPath}`, {
+    headers: {
+      'x-user-id': getUserId()
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get file for viewing');
+  }
+
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 export default {
   createDataRoom,
   joinDataRoom,
@@ -488,5 +603,10 @@ export default {
   rejectAccess,
   removeUserAccess,
   connectToRoom,
-  disconnectFromRoom
+  disconnectFromRoom,
+  trackFileView,
+  trackFileDownload,
+  getFileStats,
+  getRoomFileStats,
+  getFileForViewing
 };
