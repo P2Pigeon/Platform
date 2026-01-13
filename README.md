@@ -37,68 +37,68 @@ P2Pigeon is a decentralized communications platform designed for organizations r
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           P2PIGEON SYSTEM ARCHITECTURE                               │
+│                           P2PIGEON SYSTEM ARCHITECTURE                              │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
+│                                                                                     │
 │  ┌──────────────────────────────────────────────────────────────────────────────┐   │
-│  │                            PRESENTATION LAYER                                 │   │
+│  │                            PRESENTATION LAYER                                │   │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
 │  │  │  Video UI   │  │  Chat UI    │  │ Data Room   │  │  Contacts   │          │   │
 │  │  │  (RoomPage) │  │  (Nostr)    │  │  (Files)    │  │  (ED25519)  │          │   │
 │  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │   │
 │  └─────────┼────────────────┼────────────────┼────────────────┼─────────────────┘   │
-│            │                │                │                │                      │
+│            │                │                │                │                     │
 │  ┌─────────▼────────────────▼────────────────▼────────────────▼─────────────────┐   │
-│  │                          PROTOCOL ABSTRACTION LAYER                           │   │
-│  │                                                                               │   │
+│  │                          PROTOCOL ABSTRACTION LAYER                          │   │
+│  │                                                                              │   │
 │  │  ┌───────────────────────────────────────────────────────────────────────┐   │   │
-│  │  │                        ProtocolManager.ts                              │   │   │
-│  │  │  • Unified API for all communication protocols                         │   │   │
-│  │  │  • Automatic protocol negotiation and fallback                         │   │   │
-│  │  │  • Event normalization across protocol adapters                        │   │   │
-│  │  └───────────────────────────────────────────────────────────────────────┘   │   │
-│  │                                    │                                          │   │
+│  │  │                        ProtocolManager.ts                             │   │   │
+│  │  │  • Unified API for all communication protocols                        │   │   │
+│  │  │  • Automatic protocol negotiation and fallback                        │   │   │
+│  │  │  • Event normalization across protocol adapters                       │   │   │
+│  │  └───────────────────────────────────────────────────────────────────────┘   │   │ 
+│  │                                    │                                         │   │
 │  │           ┌────────────────────────┼────────────────────────┐                │   │
 │  │           ▼                        ▼                        ▼                │   │
-│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │   │
-│  │  │ WebRTCAdapter   │    │ServerlessMesh   │    │  NostrAdapter   │          │   │
-│  │  │                 │    │    Adapter      │    │                 │          │   │
-│  │  │ • ICE/STUN/TURN │    │ • DHT Discovery │    │ • Relay-based   │          │   │
-│  │  │ • DTLS-SRTP     │    │ • Mesh Topology │    │ • NIP-04 E2E    │          │   │
-│  │  │ • DataChannel   │    │ • VAD Routing   │    │ • Persistence   │          │   │
-│  │  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘          │   │
+│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐           │   │
+│  │  │ WebRTCAdapter   │    │ServerlessMesh   │    │  NostrAdapter   │           │   │
+│  │  │                 │    │    Adapter      │    │                 │           │   │
+│  │  │ • ICE/STUN/TURN │    │ • DHT Discovery │    │ • Relay-based   │           │   │
+│  │  │ • DTLS-SRTP     │    │ • Mesh Topology │    │ • NIP-04 E2E    │           │   │
+│  │  │ • DataChannel   │    │ • VAD Routing   │    │ • Persistence   │           │   │
+│  │  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘           │   │
 │  └───────────┼──────────────────────┼──────────────────────┼────────────────────┘   │
-│              │                      │                      │                         │
+│              │                      │                      │                        │
 │  ┌───────────▼──────────────────────▼──────────────────────▼────────────────────┐   │
-│  │                           TRANSPORT LAYER                                     │   │
-│  │                                                                               │   │
-│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │   │
-│  │  │    WebRTC       │    │   Hyperswarm    │    │  Nostr Relays   │          │   │
-│  │  │                 │    │      DHT        │    │                 │          │   │
-│  │  │ • P2P Media     │    │ • Distributed   │    │ • Decentralized │          │   │
-│  │  │ • NAT Traversal │    │ • Serverless    │    │ • Redundant     │          │   │
-│  │  │ • Encrypted     │    │ • Holepunching  │    │ • Censorship-   │          │   │
-│  │  │                 │    │                 │    │   Resistant     │          │   │
-│  │  └─────────────────┘    └─────────────────┘    └─────────────────┘          │   │
-│  └───────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                      │
-│  ┌───────────────────────────────────────────────────────────────────────────────┐   │
-│  │                           SECURITY LAYER                                       │   │
-│  │                                                                               │   │
+│  │                           TRANSPORT LAYER                                    │   │
+│  │                                                                              │   │
+│  │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐           │   │
+│  │  │    WebRTC       │    │   Hyperswarm    │    │  Nostr Relays   │           │   │
+│  │  │                 │    │      DHT        │    │                 │           │   │
+│  │  │ • P2P Media     │    │ • Distributed   │    │ • Decentralized │           │   │
+│  │  │ • NAT Traversal │    │ • Serverless    │    │ • Redundant     │           │   │
+│  │  │ • Encrypted     │    │ • Holepunching  │    │ • Censorship-   │           │   │
+│  │  │                 │    │                 │    │   Resistant     │           │   │
+│  │  └─────────────────┘    └─────────────────┘    └─────────────────┘           │   │
+│  └──────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                     │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐   │
+│  │                           SECURITY LAYER                                     │   │
+│  │                                                                              │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │   │
 │  │  │  AES-256-GCM │  │   X25519     │  │   ED25519    │  │    BLAKE3    │      │   │
 │  │  │  Symmetric   │  │   Key        │  │   Digital    │  │    Hashing   │      │   │
 │  │  │  Encryption  │  │   Exchange   │  │   Signatures │  │              │      │   │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘      │   │
-│  │                                                                               │   │
+│  │                                                                              │   │
 │  │  ┌────────────────────────────────────────────────────────────────────────┐  │   │
-│  │  │                     Metadata Protection                                 │  │   │
+│  │  │                     Metadata Protection                                │  │   │
 │  │  │  • SDP Sanitization (removes private IPs, MACs, hardware IDs)          │  │   │
 │  │  │  • ICE Candidate Filtering (strips host candidates, mDNS)              │  │   │
 │  │  │  • Timing Attack Mitigation (randomized delays)                        │  │   │
 │  │  └────────────────────────────────────────────────────────────────────────┘  │   │
-│  └───────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                      │
+│  └──────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                     │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -110,30 +110,30 @@ P2Pigeon is a decentralized communications platform designed for organizations r
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    SERVERLESS MESH TOPOLOGY                      │
+│                    SERVERLESS MESH TOPOLOGY                     │
 ├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│        ┌─────┐                           ┌─────┐                │
-│        │  A  │◄─────── WebRTC ──────────►│  B  │                │
-│        └──┬──┘         (E2E)             └──┬──┘                │
-│           │                                 │                    │
-│           │         Hyperswarm DHT          │                    │
-│           │      ┌───────────────┐          │                    │
-│           └─────►│   Discovery   │◄─────────┘                    │
-│                  │   (No Server) │                               │
-│           ┌─────►│               │◄─────────┐                    │
-│           │      └───────────────┘          │                    │
-│           │                                 │                    │
-│        ┌──┴──┐                           ┌──┴──┐                │
-│        │  C  │◄─────── WebRTC ──────────►│  D  │                │
-│        └─────┘         (E2E)             └─────┘                │
-│                                                                  │
-│   ✓ Zero infrastructure cost                                    │
-│   ✓ Infinite horizontal scale                                   │
-│   ✓ No single point of failure                                  │
-│   ✓ Censorship resistant                                        │
-│   ✓ 100+ participant support                                    │
-│                                                                  │
+│                                                                 │
+│           ┌─────┐                           ┌─────┐             │
+│           │  A  │◄─────── WebRTC ──────────►│  B  │             │
+│           └──┬──┘         (E2E)             └──┬──┘             │
+│              │                                 │                │
+│              │         Hyperswarm DHT          │                │
+│              │      ┌───────────────┐          │                │
+│              └─────►│   Discovery   │◄─────────┘                │
+│                     │   (No Server) │                           │
+│              ┌─────►│               │◄─────────┐                │
+│              │      └───────────────┘          │                │
+│              │                                 │                │
+│           ┌──┴──┐                           ┌──┴──┐             │
+│           │  C  │◄─────── WebRTC ──────────►│  D  │             │
+│           └─────┘         (E2E)             └─────┘             │
+│                                                                 │
+│              ✓ Zero infrastructure cost                         │
+│              ✓ Infinite horizontal scale                        │
+│              ✓ No single point of failure                       │
+│              ✓ Censorship resistant                             │
+│              ✓ 100+ participant support                         │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
