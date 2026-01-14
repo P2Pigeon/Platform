@@ -95,7 +95,7 @@
         "node-fetch": "^2.7.0",
         "prettier": "3.0.0",
         "puppeteer": "^24.34.0",
-        "typescript": "^4.7.4"
+        "typescript": "^5.0.0"
     },
     "eslintConfig": {
         "extends": [
